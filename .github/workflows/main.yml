@@ -40,3 +40,115 @@ jobs:
 
       - name: Build Docker image - backend
         run: docker build -t backend-image:latest ./backend
+
+  create-release-tag:
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    name: Create GitHub Release & Tag
+    runs-on: ubuntu-latest
+    needs: [docker-backend]
+    outputs:
+      release_tag: ${{ steps.get_version.outputs.tag }}
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v3
+
+      - name: Générer un tag basé sur la date et le commit
+        id: get_version
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          DATE=$(date +'%Y-%m-%d')
+          TAG="v${DATE}-${SHORT_SHA}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Créer un tag Git
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag ${{ steps.get_version.outputs.tag }}
+          git push origin ${{ steps.get_version.outputs.tag }}
+
+      - name: Créer une release GitHub
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_version.outputs.tag }}
+
+  build-and-push-images:
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    name: Build and Push Docker Images
+    runs-on: ubuntu-latest
+    needs: [docker-backend, create-release-tag]
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build & Push Backend Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            maelmichaud/quiz-backend:latest
+            maelmichaud/quiz-backend:${{ needs.create-release-tag.outputs.release_tag }}
+
+  docker-compose-test:
+    if: ${{ github.event_name == 'pull_request' && github.base_ref == 'main' }}
+    name: Test de l'intégration Docker Compose
+    runs-on: ubuntu-latest
+    needs: [build-and-push-images, create-release-tag]
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker and Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ca-certificates \
+            curl \
+            gnupg \
+            lsb-release
+
+          sudo mkdir -p /etc/apt/keyrings
+          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+          echo \
+            "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+            $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+          sudo apt-get update
+          sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+          sudo usermod -aG docker $USER
+          newgrp docker
+
+      - name: Créer le fichier .env dans backend
+        run: |
+          echo "DB_HOST=mysql-db" > ./backend/.env
+          echo "DB_USER=${{ secrets.DB_USER }}" >> ./backend/.env
+          echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> ./backend/.env
+          echo "DB_NAME=${{ secrets.DB_NAME }}" >> ./backend/.env
+
+      - name: Lancer docker-compose
+        run: docker compose --env-file ./backend/.env up -d --build
+
+      - name: Vérifier les conteneurs actifs
+        run: docker ps
+
+      - name: Nettoyage
+        if: always()
+        run: docker compose --env-file ./backend/.env down --volumes
+
+      - name: Supprimer le fichier .env
+        if: always()
+        run: rm -f ./backend/.env
