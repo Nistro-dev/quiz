@@ -1,9 +1,22 @@
 import Quiz from "../models/quizModel.js";
+import { extractUserIdFromToken } from "../middleware/tokenUtil.js";
 
 export const createQuiz = async (req, res) => {
   try {
     const { title, description, theme, questions } = req.body;
-    const quiz = await Quiz.create({ title, description, theme, questions });
+    const ownerId = extractUserIdFromToken(req);
+
+    if (!ownerId) {
+      return res.status(401).json({ message: "Token invalide ou manquant" });
+    }
+
+    const quiz = await Quiz.create({
+      title,
+      description,
+      theme,
+      questions,
+      ownerId,
+    });
     res.status(201).json(quiz);
   } catch (error) {
     res.status(500).json({ message: "Erreur lors de la création du quiz" });
@@ -15,6 +28,7 @@ export const getQuizzes = async (req, res) => {
     const quizzes = await Quiz.findAll();
     res.status(200).json(quizzes);
   } catch (error) {
+    console.error(error);
     res
       .status(500)
       .json({ message: "Erreur lors de la récupération des quizzes" });
@@ -32,11 +46,9 @@ export const getQuizzesByTheme = async (req, res) => {
     }
     res.status(200).json(quizzes);
   } catch (error) {
-    res
-      .status(500)
-      .json({
-        message: "Erreur lors de la récupération des quizzes par thème",
-      });
+    res.status(500).json({
+      message: "Erreur lors de la récupération des quizzes par thème",
+    });
   }
 };
 
