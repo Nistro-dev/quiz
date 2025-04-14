@@ -1,0 +1,33 @@
+version: '3.9'
+
+services:
+  mysql-db:
+    image: mysql:8.3
+    restart: unless-stopped
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    container_name: quiz_backend
+    environment:
+      DB_HOST: mysql-db
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - mysql-db
+
+volumes:
+  mysql_data:
