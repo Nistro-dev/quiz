@@ -5,15 +5,16 @@ import {
   deleteQuestion,
   updateQuestion
 } from "../controllers/questionController.js";
+import { authenticate } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
 router
   .route("/")
-  .post(createQuestion)
+  .post(authenticate, createQuestion)
 router
   .route("/:id")
-  .delete(deleteQuestion)
-  .put(updateQuestion);
+  .delete(authenticate, deleteQuestion)
+  .put(authenticate, updateQuestion);
 
 export default router;

@@ -17,9 +17,6 @@ const QuizResponse = sequelize.define("QuizResponse", {
   }
 });
 
-QuizResponse.belongsTo(Quiz, { foreignKey: "quizId", as: "quiz" });
-Quiz.hasMany(QuizResponse, { foreignKey: "quizId", as: "responses" });
-
 QuizResponse.addHook("beforeSave", async (quizResponse, options) => {
   let totalCorrect = 0;
   if (!quizResponse.responses || !Array.isArray(quizResponse.responses)) {
