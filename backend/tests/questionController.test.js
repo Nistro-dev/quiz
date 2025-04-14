@@ -2,6 +2,12 @@ import request from "supertest";
 import app from "../src/app.js";
 import Question from "../src/models/questionModel.js";
 import { jest } from "@jest/globals";
+import jwt from "jsonwebtoken";
+
+const testToken = jwt.sign(
+  { userId: 1, role: "user" },
+  process.env.JWT_SECRET || "super-secret"
+);
 
 jest.mock("../src/models/questionModel.js");
 
@@ -22,7 +28,10 @@ describe("Question Controller", () => {
 
       Question.create.mockResolvedValue(createdQuestion);
 
-      const res = await request(app).post("/api/question").send(questionData);
+      const res = await request(app)
+        .post("/api/question")
+        .set("Authorization", `Bearer ${testToken}`)
+        .send(questionData);
 
       expect(res.status).toBe(201);
       expect(res.body).toEqual(createdQuestion);
@@ -69,6 +78,7 @@ describe("Question Controller", () => {
 
       const res = await request(app)
         .put("/api/question/1")
+        .set("Authorization", `Bearer ${testToken}`)
         .send({
           text: "New text",
           choices: ["A", "B", "C"],
@@ -90,7 +100,9 @@ describe("Question Controller", () => {
     it("devrait supprimer une question", async () => {
       Question.destroy = jest.fn().mockResolvedValue(1);
 
-      const res = await request(app).delete("/api/question/1");
+      const res = await request(app)
+        .delete("/api/question/1")
+        .set("Authorization", `Bearer ${testToken}`);
 
       expect(res.status).toBe(204);
       expect(Question.destroy).toHaveBeenCalledWith({ where: { id: 1 } });
@@ -99,7 +111,9 @@ describe("Question Controller", () => {
     it("devrait retourner 404 si la question n'est pas trouvée", async () => {
       Question.destroy = jest.fn().mockResolvedValue(0);
 
-      const res = await request(app).delete("/api/question/999");
+      const res = await request(app)
+        .delete("/api/question/999")
+        .set("Authorization", `Bearer ${testToken}`);
 
       expect(res.status).toBe(404);
     });
