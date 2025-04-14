@@ -14,9 +14,7 @@ services:
       - mysql_data:/var/lib/
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
+    image: maelmichaud/quiz-backend:latest
     restart: unless-stopped
     container_name: quiz_backend
     environment:
