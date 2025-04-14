@@ -49,7 +49,4 @@ Quiz.addHook("beforeUpdate", (quiz, options) => {
   }
 });
 
-Quiz.belongsTo(User, { foreignKey: "ownerId", as: "owner" });
-User.hasMany(Quiz, { foreignKey: "ownerId", as: "quizzes" });
-
 export default Quiz;

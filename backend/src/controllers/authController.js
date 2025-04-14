@@ -7,6 +7,11 @@ const secret = process.env.JWT_SECRET || "super-secret";
 export const register = async (req, res) => {
   try {
     const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.status(400).json({ error: "Le nom d'utilisateur et le mot de passe sont requis" });
+    }
+
     const user = await User.create({ username, passwordHash: password });
     res.status(201).json({ message: "Utilisateur créé", userId: user.id });
   } catch (error) {
@@ -15,16 +20,25 @@ export const register = async (req, res) => {
 };
 
 export const login = async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ where: { username } });
+  try {
+    const { username, password } = req.body;
 
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    return res.status(401).json({ error: "Identifiants invalides" });
+    if (!username || !password) {
+      return res.status(400).json({ error: "Le nom d'utilisateur et le mot de passe sont requis" });
+    }
+
+    const user = await User.findOne({ where: { username } });
+
+    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+      return res.status(401).json({ error: "Identifiants invalides" });
+    }
+
+    const token = jwt.sign({ userId: user.id, role: user.role }, secret, {
+      expiresIn: process.env.JWT_EXPIRES_IN || "1h",
+    });
+
+    res.json({ token });
+  } catch (error) {
+    res.status(500).json({ error: "Erreur lors de la connexion" });
   }
-
-  const token = jwt.sign({ userId: user.id, role: user.role }, secret, {
-    expiresIn: process.env.JWT_EXPIRES_IN || "1h",
-  });
-
-  res.json({ token });
 };
