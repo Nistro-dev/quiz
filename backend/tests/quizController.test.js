@@ -3,78 +3,64 @@ import app from "../src/app.js";
 import Quiz from "../src/models/quizModel.js";
 import { jest } from "@jest/globals";
 
-jest.mock("../src/models/quizModel.js");
+afterEach(() => {
+  jest.clearAllMocks();
+});
 
-describe("Quiz Controller", () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  describe("createQuiz", () => {
-    it("devrait créer un quiz et retourner 201", async () => {
+describe("Additional Quiz Controller Tests", () => {
+  describe("createQuiz error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la création du quiz", async () => {
       const quizData = { title: "Titre", description: "Description" };
-      const createdQuiz = { id: 1, ...quizData };
-
-      Quiz.create.mockResolvedValue(createdQuiz);
+      jest.spyOn(Quiz, "create").mockRejectedValue(new Error("fail"));
 
       const res = await request(app).post("/api/quiz").send(quizData);
 
-      expect(res.status).toBe(201);
-      expect(res.body).toEqual(createdQuiz);
-      expect(Quiz.create).toHaveBeenCalledWith(quizData);
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la création du quiz" });
     });
   });
 
-  describe("getQuizzes", () => {
-    it("devrait retourner la liste des quiz", async () => {
-      const quizzes = [{ id: 1, title: "Quiz 1" }];
-      Quiz.findAll = jest.fn().mockResolvedValue(quizzes);
+  describe("getQuizzes error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la récupération des quizzes", async () => {
+      Quiz.findAll = jest.fn().mockRejectedValue(new Error("fail"));
 
       const res = await request(app).get("/api/quiz");
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(quizzes);
-      expect(Quiz.findAll).toHaveBeenCalled();
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la récupération des quizzes" });
     });
   });
 
-  describe("getQuizById", () => {
-    it("devrait retourner un quiz avec un id", async () => {
-      const quiz = { id: 1, title: "Quiz 1" };
-      Quiz.findByPk = jest.fn().mockResolvedValue(quiz);
+  describe("getQuizById error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la récupération du quiz par id", async () => {
+      Quiz.findByPk = jest.fn().mockRejectedValue(new Error("fail"));
 
       const res = await request(app).get("/api/quiz/1");
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(quiz);
-      expect(Quiz.findByPk).toHaveBeenCalledWith("1");
-    });
-
-    it("devrait retourner 404 si le quiz n'existe pas", async () => {
-      Quiz.findByPk = jest.fn().mockResolvedValue(null);
-
-      const res = await request(app).get("/api/quiz/999");
-
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la récupération du quiz" });
     });
   });
 
-  describe("updateQuiz", () => {
-    it("devrait mettre à jour un quiz", async () => {
+  describe("getQuizzesByTheme error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la récupération des quizzes par thème", async () => {
+      const theme = "Mathématiques";
+      Quiz.findAll = jest.fn().mockRejectedValue(new Error("fail"));
+
+      const res = await request(app).get(`/api/quiz/theme/${theme}`);
+
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la récupération des quizzes par thème" });
+    });
+  });
+
+  describe("updateQuiz error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la mise à jour du quiz", async () => {
       const quizInstance = {
         id: 1,
         title: "Old Title",
         description: "Old Description",
-        update: jest.fn().mockImplementation(async function (updatedData) {
-          Object.assign(this, updatedData);
-          return this;
-        }),
-      };
-
-      const expectedUpdatedQuiz = {
-        id: 1,
-        title: "New",
-        description: "Desc",
+        update: jest.fn().mockRejectedValue(new Error("fail")),
       };
 
       Quiz.findByPk = jest.fn().mockResolvedValue(quizInstance);
@@ -83,31 +69,19 @@ describe("Quiz Controller", () => {
         .put("/api/quiz/1")
         .send({ title: "New", description: "Desc" });
 
-      expect(res.status).toBe(200);
-      expect(res.body).toEqual(expectedUpdatedQuiz);
-      expect(quizInstance.update).toHaveBeenCalledWith({
-        title: "New",
-        description: "Desc",
-      });
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la mise à jour du quiz" });
     });
   });
 
-  describe("deleteQuiz", () => {
-    it("devrait supprimer un quiz existant", async () => {
-      const quiz = { id: 1, title: "A supprimer" };
-      Quiz.destroy = jest.fn().mockResolvedValue(1);
+  describe("deleteQuiz error handling", () => {
+    it("devrait retourner 500 si une erreur se produit lors de la suppression du quiz", async () => {
+      Quiz.destroy = jest.fn().mockRejectedValue(new Error("fail"));
 
       const res = await request(app).delete("/api/quiz/1");
 
-      expect(res.status).toBe(204);
-    });
-
-    it("devrait retourner 404 si le quiz n'existe pas", async () => {
-      Quiz.destroy = jest.fn().mockResolvedValue(0);
-
-      const res = await request(app).delete("/api/quiz/999");
-
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(500);
+      expect(res.body).toEqual({ message: "Erreur lors de la suppression du quiz" });
     });
   });
 });
