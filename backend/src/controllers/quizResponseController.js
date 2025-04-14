@@ -1,8 +1,15 @@
 import QuizResponse from "../models/quizResponseModel.js";
+import { extractUserIdFromToken } from "../middleware/tokenUtil.js";
 
 export const createQuizResponse = async (req, res) => {
   try {
-    const { quizId, userId, responses } = req.body;
+    const { quizId, responses } = req.body;
+    const userId = extractUserIdFromToken(req);
+
+    if (!userId) {
+      return res.status(401).json({ message: "Token invalide ou manquant" });
+    }
+
     const quizResponse = await QuizResponse.create({
       quizId,
       userId,
